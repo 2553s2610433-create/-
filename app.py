@@ -1,126 +1,124 @@
 import streamlit as st
-st.title('천안오성고등학교 화이팅')
-st.write('바이브코딩 재미있다')
-import streamlit as st
-import pandas as pd
-import numpy as np
+import google.generativeai as genai
 
+# -----------------------------
 # 페이지 설정
+# -----------------------------
 st.set_page_config(
-    page_title="My Streamlit App",
-    page_icon="🚀",
-    layout="wide"
+    page_title="공부 도우미 챗봇",
+    page_icon="📚",
+    layout="centered"
 )
 
+st.title("📚 공부 도우미 챗봇")
+st.caption("Gemini 기반 학습 챗봇")
+
+# -----------------------------
+# API KEY 불러오기
+# -----------------------------
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=api_key)
+
+except Exception:
+    st.error("API 키를 불러올 수 없습니다.")
+    st.info(".streamlit/secrets.toml 파일을 확인하세요.")
+    st.stop()
+
+# -----------------------------
+# 모델 설정
+# -----------------------------
+model = genai.GenerativeModel(
+    model_name="gemini-2.5-flash-lite",
+    system_instruction="""
+    너는 공부를 도와주는 친절한 AI 튜터다.
+    
+    규칙:
+    - 개념을 쉽게 설명한다.
+    - 예시를 함께 제공한다.
+    - 어려운 용어는 풀어서 설명한다.
+    - 사용자의 학습 수준에 맞춰 답변한다.
+    - 시험 대비, 요약, 암기 팁도 제공한다.
+    """
+)
+
+# -----------------------------
 # 세션 상태 초기화
+# -----------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 사이드바
-with st.sidebar:
-    st.title("📌 메뉴")
+# -----------------------------
+# 이전 채팅 출력
+# -----------------------------
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-    menu = st.radio(
-        "이동",
-        ["홈", "데이터 분석", "AI 챗봇"]
-    )
+# -----------------------------
+# 사용자 입력
+# -----------------------------
+prompt = st.chat_input("공부 관련 질문을 입력하세요")
 
-    st.divider()
+if prompt:
 
-    st.info("스트림릿 웹앱 예제")
-
-# 홈 화면
-if menu == "홈":
-
-    st.title("🚀 Streamlit 웹앱")
-
-    st.write("이 앱은 Streamlit 기본 템플릿입니다.")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric("사용자", 128)
-
-    with col2:
-        st.metric("매출", "$12,340")
-
-    with col3:
-        st.metric("성장률", "23%")
-
-    st.divider()
-
-    st.subheader("📈 샘플 차트")
-
-    chart_data = pd.DataFrame(
-        np.random.randn(20, 3),
-        columns=["A", "B", "C"]
-    )
-
-    st.line_chart(chart_data)
-
-# 데이터 분석 페이지
-elif menu == "데이터 분석":
-
-    st.title("📊 데이터 분석")
-
-    uploaded_file = st.file_uploader(
-        "CSV 파일 업로드",
-        type=["csv"]
-    )
-
-    if uploaded_file:
-
-        df = pd.read_csv(uploaded_file)
-
-        st.subheader("데이터 미리보기")
-        st.dataframe(df)
-
-        st.subheader("기초 통계")
-        st.write(df.describe())
-
-        numeric_cols = df.select_dtypes(include=np.number).columns
-
-        if len(numeric_cols) > 0:
-
-            selected_col = st.selectbox(
-                "차트 컬럼 선택",
-                numeric_cols
-            )
-
-            st.line_chart(df[selected_col])
-
-# AI 챗봇 페이지
-elif menu == "AI 챗봇":
-
-    st.title("🤖 AI 챗봇")
-
-    # 이전 메시지 출력
-    for msg in st.session_state.messages:
-
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    # 사용자 입력
-    prompt = st.chat_input("메시지를 입력하세요")
-
-    if prompt:
-
-        # 사용자 메시지 저장
-        st.session_state.messages.append({
+    # 사용자 메시지 저장
+    st.session_state.messages.append(
+        {
             "role": "user",
             "content": prompt
-        })
+        }
+    )
 
-        with st.chat_message("user"):
-            st.markdown(prompt)
+    # 사용자 메시지 출력
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-        # 임시 AI 응답
-        response = f"'{prompt}' 라고 입력하셨네요!"
+    # AI 응답 생성
+    with st.chat_message("assistant"):
 
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": response
-        })
+        with st.spinner("답변 생성 중..."):
 
-        with st.chat_message("assistant"):
-            st.markdown(response)
+            try:
+                # 대화 기록 구성
+                history = []
+
+                for msg in st.session_state.messages[:-1]:
+
+                    role = "user" if msg["role"] == "user" else "model"
+
+                    history.append({
+                        "role": role,
+                        "parts": [msg["content"]]
+                    })
+
+                # 채팅 시작
+                chat = model.start_chat(history=history)
+
+                # 응답 생성
+                response = chat.send_message(prompt)
+
+                answer = response.text
+
+                # 응답 출력
+                st.markdown(answer)
+
+                # 세션 저장
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": answer
+                    }
+                )
+
+            except Exception as e:
+                error_message = f"오류가 발생했습니다: {str(e)}"
+
+                st.error(error_message)
+
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": error_message
+                    }
+                )
