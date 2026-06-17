@@ -1,124 +1,105 @@
 import streamlit as st
-import google.generativeai as genai
+from datetime import date
 
-# -----------------------------
-# 페이지 설정
-# -----------------------------
 st.set_page_config(
-    page_title="공부 도우미 챗봇",
+    page_title="Study D-Day Dashboard",
     page_icon="📚",
     layout="centered"
 )
 
-st.title("📚 공부 도우미 챗봇")
-st.caption("Gemini 기반 학습 챗봇")
+# 시험일
+EXAM_DATE = date(2026, 6, 30)
 
-# -----------------------------
-# API KEY 불러오기
-# -----------------------------
-try:
-    api_key = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=api_key)
+today = date.today()
+days_left = (EXAM_DATE - today).days
 
-except Exception:
-    st.error("API 키를 불러올 수 없습니다.")
-    st.info(".streamlit/secrets.toml 파일을 확인하세요.")
-    st.stop()
+st.title("📚 Study D-Day Dashboard")
+st.caption("시험일까지 남은 시간을 확인하고 공부 계획을 세워보세요.")
 
-# -----------------------------
-# 모델 설정
-# -----------------------------
-model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash-lite",
-    system_instruction="""
-    너는 공부를 도와주는 친절한 AI 튜터다.
-    
-    규칙:
-    - 개념을 쉽게 설명한다.
-    - 예시를 함께 제공한다.
-    - 어려운 용어는 풀어서 설명한다.
-    - 사용자의 학습 수준에 맞춰 답변한다.
-    - 시험 대비, 요약, 암기 팁도 제공한다.
-    """
+# D-Day 표시
+st.subheader("🎯 시험 D-Day")
+
+if days_left > 0:
+    st.metric("남은 기간", f"D-{days_left}")
+elif days_left == 0:
+    st.success("🔥 오늘이 시험일입니다!")
+else:
+    st.error(f"시험이 {-days_left}일 지났습니다.")
+
+# 진행률 계산
+START_DATE = date(2026, 1, 1)
+
+total_days = (EXAM_DATE - START_DATE).days
+elapsed_days = (today - START_DATE).days
+
+if total_days > 0:
+    progress = max(0.0, min(1.0, elapsed_days / total_days))
+else:
+    progress = 0.0
+
+st.subheader("📈 시험일까지의 시간 진행률")
+st.progress(progress)
+st.write(f"{progress * 100:.1f}% 진행")
+
+st.divider()
+
+# 공부 목표 설정
+st.subheader("📝 공부 목표 관리")
+
+goal_hours = st.number_input(
+    "총 공부 목표 시간",
+    min_value=0.0,
+    value=300.0,
+    step=10.0
 )
 
-# -----------------------------
-# 세션 상태 초기화
-# -----------------------------
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+studied_hours = st.number_input(
+    "현재까지 공부한 시간",
+    min_value=0.0,
+    value=100.0,
+    step=1.0
+)
 
-# -----------------------------
-# 이전 채팅 출력
-# -----------------------------
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# 목표 달성률
+if goal_hours > 0:
+    study_progress = min(100.0, (studied_hours / goal_hours) * 100)
+else:
+    study_progress = 0.0
 
-# -----------------------------
-# 사용자 입력
-# -----------------------------
-prompt = st.chat_input("공부 관련 질문을 입력하세요")
+st.write("### 📊 공부 진행률")
+st.progress(min(study_progress / 100, 1.0))
+st.write(f"{study_progress:.1f}% 달성")
 
-if prompt:
+remaining_hours = max(0.0, goal_hours - studied_hours)
 
-    # 사용자 메시지 저장
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": prompt
-        }
-    )
+col1, col2 = st.columns(2)
 
-    # 사용자 메시지 출력
-    with st.chat_message("user"):
-        st.markdown(prompt)
+with col1:
+    st.metric("남은 공부 시간", f"{remaining_hours:.1f}시간")
 
-    # AI 응답 생성
-    with st.chat_message("assistant"):
+with col2:
+    if days_left > 0:
+        daily_needed = remaining_hours / days_left
+        st.metric("하루 필요 공부량", f"{daily_needed:.1f}시간")
+    else:
+        st.metric("하루 필요 공부량", "-")
 
-        with st.spinner("답변 생성 중..."):
+st.divider()
 
-            try:
-                # 대화 기록 구성
-                history = []
+# 응원 메시지
+st.subheader("💪 오늘의 메시지")
 
-                for msg in st.session_state.messages[:-1]:
+if days_left > 100:
+    st.info("꾸준함이 가장 큰 무기입니다. 매일 조금씩 전진하세요!")
+elif days_left > 30:
+    st.warning("실전 대비를 시작할 좋은 시기입니다.")
+elif days_left > 7:
+    st.warning("마무리 정리와 문제풀이에 집중하세요!")
+elif days_left > 0:
+    st.error("마지막 스퍼트입니다. 컨디션 관리도 중요합니다!")
+else:
+    st.success("수고하셨습니다! 최선을 다한 자신을 칭찬하세요. 🎉")
 
-                    role = "user" if msg["role"] == "user" else "model"
+st.divider()
 
-                    history.append({
-                        "role": role,
-                        "parts": [msg["content"]]
-                    })
-
-                # 채팅 시작
-                chat = model.start_chat(history=history)
-
-                # 응답 생성
-                response = chat.send_message(prompt)
-
-                answer = response.text
-
-                # 응답 출력
-                st.markdown(answer)
-
-                # 세션 저장
-                st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "content": answer
-                    }
-                )
-
-            except Exception as e:
-                error_message = f"오류가 발생했습니다: {str(e)}"
-
-                st.error(error_message)
-
-                st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "content": error_message
-                    }
-                )
+st.caption("Study D-Day Dashboard • Streamlit")
