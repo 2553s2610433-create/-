@@ -1,130 +1,127 @@
 import streamlit as st
-import pandas as pd
 
 st.set_page_config(
-    page_title="과목별 강의 모아보기",
-    page_icon="📚",
+    page_title="내신 대비 강의 정리함",
+    page_icon="📖",
     layout="wide"
 )
 
-# ==========================
-# 강의 데이터
-# ==========================
+# =========================
+# 고등학교 강의 데이터
+# =========================
 LECTURES = {
-    "수학": [
+    "국어": [
         {
-            "title": "중학교 수학 개념 정리",
-            "url": "https://www.youtube.com/embed/1N4Aq0tK3nM",
-            "watch_url": "https://www.youtube.com/watch?v=1N4Aq0tK3nM",
-            "description": "중학교 수학 핵심 개념을 정리한 강의입니다."
+            "title": "문학 개념 정리",
+            "url": "https://www.youtube.com/watch?v=1N4Aq0tK3nM",
+            "desc": "문학 작품 분석 기본 개념",
+            "star": True
         },
         {
-            "title": "함수 기초",
-            "url": "https://www.youtube.com/embed/YjL3V3J8r0M",
-            "watch_url": "https://www.youtube.com/watch?v=YjL3V3J8r0M",
-            "description": "함수의 기본 개념을 설명합니다."
+            "title": "비문학 독해 전략",
+            "url": "https://www.youtube.com/watch?v=eIho2S0ZahI",
+            "desc": "지문 빠르게 푸는 방법",
+            "star": False
         }
     ],
-
+    "수학": [
+        {
+            "title": "함수 개념 완전정리",
+            "url": "https://www.youtube.com/watch?v=YjL3V3J8r0M",
+            "desc": "고1 함수 핵심 개념",
+            "star": True
+        },
+        {
+            "title": "순열과 조합 기초",
+            "url": "https://www.youtube.com/watch?v=L_jWHffIx5E",
+            "desc": "경우의 수 기본",
+            "star": False
+        }
+    ],
     "영어": [
         {
-            "title": "기초 영어 문법",
-            "url": "https://www.youtube.com/embed/eIho2S0ZahI",
-            "watch_url": "https://www.youtube.com/watch?v=eIho2S0ZahI",
-            "description": "영어 문법의 기초를 학습합니다."
+            "title": "영문법 핵심 정리",
+            "url": "https://www.youtube.com/watch?v=eIho2S0ZahI",
+            "desc": "시험에 자주 나오는 문법",
+            "star": True
         }
     ],
-
+    "한국사": [
+        {
+            "title": "근현대사 핵심 요약",
+            "url": "https://www.youtube.com/watch?v=1N4Aq0tK3nM",
+            "desc": "시험 직전 정리용",
+            "star": False
+        }
+    ],
     "과학": [
         {
-            "title": "과학 개념 완성",
-            "url": "https://www.youtube.com/embed/L_jWHffIx5E",
-            "watch_url": "https://www.youtube.com/watch?v=L_jWHffIx5E",
-            "description": "과학 핵심 개념을 쉽게 설명합니다."
+            "title": "물리 개념 기초",
+            "url": "https://www.youtube.com/watch?v=L_jWHffIx5E",
+            "desc": "힘과 운동 기본 개념",
+            "star": False
         }
     ]
 }
 
-# ==========================
+# =========================
 # 제목
-# ==========================
-st.title("📚 과목별 강의 모아보기")
-st.write("원하는 과목을 선택하여 강의를 바로 시청하거나 따로 열어볼 수 있습니다.")
+# =========================
+st.title("📖 내신 대비 강의 정리함")
+st.caption("고등학교 과목별로 강의를 빠르게 찾아보고 복습할 수 있는 앱")
 
-# ==========================
-# 사이드바
-# ==========================
-subjects = list(LECTURES.keys())
+# =========================
+# 과목 탭
+# =========================
+tabs = st.tabs(list(LECTURES.keys()))
 
-selected_subject = st.sidebar.selectbox(
-    "과목 선택",
-    subjects
-)
+for i, subject in enumerate(LECTURES.keys()):
+    with tabs[i]:
+        st.subheader(f"📘 {subject}")
 
-st.sidebar.markdown("---")
-st.sidebar.info(
-    "강의를 추가하려면 app.py의 LECTURES 데이터를 수정하세요."
-)
+        lectures = LECTURES[subject]
 
-# ==========================
-# 선택 과목 표시
-# ==========================
-st.header(f"📖 {selected_subject}")
+        selected = st.selectbox(
+            f"{subject} 강의 선택",
+            [l["title"] for l in lectures],
+            key=subject
+        )
 
-lectures = LECTURES.get(selected_subject, [])
+        lecture = next(l for l in lectures if l["title"] == selected)
 
-if not lectures:
-    st.warning("등록된 강의가 없습니다.")
-    st.stop()
+        # 중요 표시
+        if lecture["star"]:
+            st.markdown("⭐ **시험에 중요한 강의**")
 
-# ==========================
-# 강의 목록
-# ==========================
-lecture_titles = [lecture["title"] for lecture in lectures]
+        st.write("📌", lecture["desc"])
 
-selected_title = st.selectbox(
-    "강의 선택",
-    lecture_titles
-)
+        st.video(lecture["url"])
 
-selected_lecture = next(
-    (lecture for lecture in lectures if lecture["title"] == selected_title),
-    None
-)
+        st.link_button("🔗 유튜브에서 따로 보기", lecture["url"])
 
-# ==========================
-# 강의 표시
-# ==========================
-if selected_lecture:
-    st.subheader(selected_lecture["title"])
+        # =========================
+        # 간단 메모 기능
+        # =========================
+        st.markdown("---")
+        st.write("📝 나만의 필기")
 
-    st.write(selected_lecture["description"])
+        memo_key = f"memo_{subject}_{lecture['title']}"
 
-    st.video(selected_lecture["watch_url"])
+        memo = st.text_area(
+            "복습 메모 작성",
+            key=memo_key,
+            placeholder="여기에 중요한 내용 정리"
+        )
 
-    st.link_button(
-        "🔗 새 탭에서 따로 보기",
-        selected_lecture["watch_url"]
-    )
-
-# ==========================
-# 전체 강의 목록
-# ==========================
+# =========================
+# 전체 통계
+# =========================
 st.markdown("---")
-st.subheader("전체 강의 현황")
+st.subheader("📊 전체 강의 현황")
 
-summary = []
+total = sum(len(v) for v in LECTURES.values())
 
-for subject, items in LECTURES.items():
-    summary.append({
-        "과목": subject,
-        "강의 수": len(items)
-    })
+st.write(f"전체 강의 수: **{total}개**")
 
-df = pd.DataFrame(summary)
-
-st.dataframe(
-    df,
-    use_container_width=True,
-    hide_index=True
-)
+for subject, lectures in LECTURES.items():
+    st.write(f"- {subject}: {len(lectures)}개")
